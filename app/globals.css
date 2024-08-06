@@ -1,6 +1,7 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+@import url("https://use.typekit.net/fzx3dfn.css");
 
 :root {
   --foreground-rgb: 0, 0, 0;
@@ -16,12 +17,97 @@
   }
 }
 
-body {
+html, body {
+  overscroll-behavior: none;
+
   color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+  background: white;
+  overscroll-behavior-y: none;
+  font-family: "eurostile", sans-serif;
 }
+
+img {
+  background: transparent;
+  object-fit: contain;
+}
+
+Canvas {
+  height: 100%;
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tv {
+
+
+  background-size: contain;
+  background-repeat: no-repeat;
+  
+}
+
+
+/* width */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+/* Track */
+::-webkit-scrollbar-track {
+  background: #f1f1f1; 
+}
+
+/* Handle */
+::-webkit-scrollbar-thumb {
+  background: #888; 
+}
+
+/* Handle on hover */
+::-webkit-scrollbar-thumb:hover {
+  background: #555; 
+}
+
+.player-wrapper {
+  position: relative;
+
+}
+
+.react-player {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.tv-container{
+
+}
+
+.tv-image{
+  pointer-events: none;
+  margin-right:5px;
+  margin-top:50px;
+
+
+}
+
+.tv-guide-combo{
+  width:100vw;
+}
+
+.TVHtml {
+  width: full;
+  height: 100%;
+}
+
+.creature{
+  
+  height:200px;
+}
+
+@media (-webkit-device-pixel-ratio: 3) {}
+
+

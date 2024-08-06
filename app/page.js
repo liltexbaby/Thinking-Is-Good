@@ -1,113 +1,273 @@
-import Image from 'next/image'
+"use client";
 
-export default function Home() {
+import React, { useEffect, useState, useCallback, useRef } from "react"; // Import useRef
+import fetchData from "./utils/fetchData";
+import TVScene from "./utils/TVScene";
+
+
+function page() {
+  const [channels, setChannels] = useState([]); // Start with an empty array
+  const [currentChannel, setCurrentChannel] = useState(null);
+  const [currentProject, setCurrentProject] = useState(null);
+  const [showStatic, setShowStatic] = useState(true);
+  const [tvOn, setTvOn] = useState(false); // State to manage TV power status
+  const videoRef = useRef(null);
+  const [showModal, setShowModal] = useState(false); // State for modal visibility
+  const [showCompact, setShowCompact] = useState(false);
+
+  const toggleGuide = () => {
+    setShowCompact(!showCompact);
+    console.log("showCompact");
+  };
+
+  const toggleModal = () => {
+    setShowModal(!showModal); // Toggle modal visibility
+  };
+
+  const toggleTvPower = () => {
+    playStaticSound();
+    setShowStatic(true);
+    setTvOn(!tvOn); // Toggle TV on/off
+  };
+
+  const playStaticSound = () => {
+    // Array of available sound files
+    const sounds = ["static1.mp3", "static2.mp3", "static3.mp3"];
+
+    // Generate a random index based on the number of sounds
+    const randomIndex = Math.floor(Math.random() * sounds.length);
+
+    // Construct the file path using the selected random sound
+    const soundFilePath = `audio/${sounds[randomIndex]}`;
+
+    // Play the sound
+    const audio = new Audio(soundFilePath);
+    audio.play();
+  };
+
+  const onVideoReady = () => {
+    setShowStatic(false); // Hide static effect once video is ready
+  };
+
+  const playNextVideo = () => {
+    setShowStatic(true); // Show static
+    playStaticSound();
+
+    if (currentChannel && currentProject) {
+      const currentIndex = currentChannel.linkedProjects.findIndex(
+        (project) => project.id === currentProject.id
+      );
+      const nextIndex =
+        (currentIndex + 1) % currentChannel.linkedProjects.length; // Loop back to the first video
+
+      const nextProject = currentChannel.linkedProjects[nextIndex];
+      setCurrentProject(nextProject);
+
+      // Update the currentChannel with the new currentChannelProject
+      const updatedChannel = {
+        ...currentChannel,
+        currentChannelProject: nextProject,
+      };
+
+      // Update the state to reflect this change
+      setCurrentChannel(updatedChannel);
+
+      // Also update the channels array in state if needed
+      const updatedChannels = channels.map((channel) =>
+        channel.id === currentChannel.id ? updatedChannel : channel
+      );
+      setChannels(updatedChannels);
+    }
+  };
+
+  // Function to play the previous video
+  const playPrevVideo = () => {
+    setShowStatic(true); // Show static
+    playStaticSound();
+
+    if (currentChannel && currentProject) {
+      const currentIndex = currentChannel.linkedProjects.findIndex(
+        (project) => project.id === currentProject.id
+      );
+      const prevIndex =
+        currentIndex === 0
+          ? currentChannel.linkedProjects.length - 1
+          : currentIndex - 1;
+      setCurrentProject(currentChannel.linkedProjects[prevIndex]);
+      if (videoRef.current) {
+        videoRef.current.play();
+      }
+    }
+  };
+
+  const nextChannel = () => {
+    setShowStatic(true); // Show static
+    playStaticSound();
+
+    if (channels.length > 0) {
+      const currentIndex = channels.findIndex(
+        (channel) => channel.id === currentChannel.id
+      );
+      const nextIndex = (currentIndex + 1) % channels.length; // Wrap to the first channel if at the end
+      setCurrentChannel(channels[nextIndex]);
+      setCurrentProject(channels[nextIndex].currentChannelProject); // Assuming you want to reset to the first project in the channel
+    }
+  };
+
+  const prevChannel = () => {
+    setShowStatic(true); // Show static
+    playStaticSound();
+
+    if (channels.length > 0) {
+      const currentIndex = channels.findIndex(
+        (channel) => channel.id === currentChannel.id
+      );
+      const prevIndex =
+        currentIndex === 0 ? channels.length - 1 : currentIndex - 1; // Wrap to the last channel if at the start
+      setCurrentChannel(channels[prevIndex]);
+      setCurrentProject(channels[prevIndex].currentChannelProject); // Assuming you want to reset to the first project in the channel
+    }
+  };
+
+  const togglePlayPause = () => {
+    if (videoRef.current) {
+      if (videoRef.current.paused) {
+        videoRef.current.play();
+      } else {
+        videoRef.current.pause();
+      }
+    }
+  };
+
+  useEffect(() => {
+    const fetchDataAndSetState = async () => {
+      const fetchedData = await fetchData();
+      if (fetchedData.length > 0) {
+        const channelsWithProjects = fetchedData.map(channel => ({
+          ...channel,
+          currentChannelProject: channel.linkedProjects[0],  // Assumes that the first project is the current one
+          nextProject: channel.linkedProjects[1] || null    // Safely get the next project or set it to null if not available
+        }));
+        setChannels(channelsWithProjects);
+        setCurrentChannel(channelsWithProjects[0]);
+        setCurrentProject(channelsWithProjects[0].currentChannelProject);
+      }
+    };
+  
+    fetchDataAndSetState();
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.code === "Space") {
+        event.preventDefault();
+        togglePlayPause();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [togglePlayPause]); // Ensure togglePlayPause is included if it's defined outside the effect
+
+  useEffect(() => {
+    console.log(showCompact);
+  });
+
+  const chooseChannel = (channelId) => {
+    setShowStatic(true); // Show static
+    playStaticSound();
+  
+    const selectedChannel = channels.find(channel => channel.id === channelId);
+    setCurrentChannel(selectedChannel);
+    setCurrentProject(selectedChannel.currentChannelProject);
+    // Assuming there's no specific 'setNextProject', as the next project can be derived from the selected channel
+  };
+
+  const chooseProject = (projectId) => {
+    setShowStatic(true); // Show static
+    playStaticSound();
+
+    // Find the selected project in the current channel's linked projects
+    const selectedProject = currentChannel.linkedProjects.find(
+      (project) => project.id === projectId
+    );
+
+    // Update the current project
+    setCurrentProject(selectedProject);
+
+    // Update the channels array with the new current project for the selected channel
+    const updatedChannels = channels.map((channel) => {
+      if (channel.id === currentChannel.id) {
+        return { ...channel, currentChannelProject: selectedProject };
+      }
+      return channel;
+    });
+
+    console.log(currentProject);
+
+    // Update the channels state
+    setChannels(updatedChannels);
+  };
+
+  if (channels.length === 0) {
+    return <div>Loading...</div>; // Display loading message until channels are fetched
+  }
+
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">app/page.js</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{' '}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
-      </div>
+    <div className="tv flex justify-center h-dvh font-eurostile overscroll-y-none">
 
-      <div className="relative flex place-items-center before:absolute before:h-[300px] before:w-[480px] before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-[240px] after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 before:lg:h-[360px] z-[-1]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
 
-      <div className="mb-32 grid text-center lg:max-w-5xl lg:w-full lg:mb-0 lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Docs{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
+      <TVScene
+      className='z-0 overscroll-y-none'
+              channels={channels}
+              currentChannel={currentChannel}
+              currentProject={currentProject}
+              tvOn={tvOn}
+              showStatic={showStatic}
+              playNextVideo={playNextVideo}
+              playPrevVideo={playPrevVideo}
+              chooseChannel={chooseChannel}
+              toggleTvPower={toggleTvPower}
+              showCompact={showCompact}
+              toggleGuide={toggleGuide}
+              showModal={showModal}
+              toggleModal={toggleModal}
+              setShowStatic={setShowStatic}
+              setCurrentProject={setCurrentProject}
+              setChannels={setChannels}
+              nextChannel={nextChannel}
+              prevChannel={prevChannel}
+              
+      />
 
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800 hover:dark:bg-opacity-30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Learn{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
+      {/* <TVContent
+        channels={channels}
+        currentChannel={currentChannel}
+        currentProject={currentProject}
+        tvOn={tvOn}
+        showStatic={showStatic}
+        playNextVideo={playNextVideo}
+        playPrevVideo={playPrevVideo}
+        chooseChannel={chooseChannel}
+        toggleTvPower={toggleTvPower}
+        showCompact={showCompact}
+        toggleGuide={toggleGuide}
+        showModal={showModal}
+        toggleModal={toggleModal}
+        setShowStatic={setShowStatic}
+        setCurrentProject={setCurrentProject}
+        setChannels={setChannels}
+      /> */}
 
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Templates{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Explore starter templates for Next.js.
-          </p>
-        </a>
 
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Deploy{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
-  )
+
+
+    </div>
+  );
 }
+
+export default page;

@@ -6,7 +6,20 @@ module.exports = {
     './app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
+
+
+
     extend: {
+      colors:{
+        'slime':'#7cff2a',
+        'goo':'#c3fd8f',
+        'butter':"#fdf377",
+      },
+
+      fontFamily: {
+        'eurostile':['eurostile']
+      },
+
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
         'gradient-conic':
