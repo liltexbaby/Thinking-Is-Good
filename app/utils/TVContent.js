@@ -23,11 +23,30 @@ function TVContent({
   setCurrentProject,
   setChannels,
   isZoomed,
-
+  handlePlayPause, // Accept handlePlayPause as a prop
+  videoRef, // Accept videoRef as a prop
+  handleFullscreenToggle, // Accept handleFullscreenToggle as a prop
+  handleMuteToggle,
+  isPaused,
+  isMuted,
 }) {
+  // Remove the local definition of videoRef, as it's now coming from props
 
-  const videoRef = useRef(null);
+
+  
+
   const audioRefs = useRef([]);
+
+
+
+  
+  // Ensure the video ref is available to the parent function
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.volume = isZoomed ? 1 : 0.2; // Adjust video volume
+    }
+  }, [isZoomed]);
+  
 
   useEffect(() => {
       if (videoRef.current) {
@@ -39,6 +58,8 @@ function TVContent({
           }
       });
   }, [isZoomed]);
+
+  
 
 
 
@@ -95,15 +116,8 @@ function TVContent({
     }
   };
 
-  const togglePlayPause = () => {
-    if (videoRef.current) {
-      if (videoRef.current.paused) {
-        videoRef.current.play();
-      } else {
-        videoRef.current.pause();
-      }
-    }
-  };
+
+
 
   
 
@@ -155,7 +169,8 @@ function TVContent({
 
 
 
- <div className="transition-all duration-500 ease-in-out z-50 tv-guide-combo absolute">
+ <div className="transition-all duration-500 ease-in-out z-30 tv-guide-combo absolute">
+
 
   {
     /*
@@ -177,21 +192,36 @@ function TVContent({
               } relative overflow-hidden`}
             >
               {currentProject && currentProject.videoUrl && (
-                <video
-                  controls
-                  key={currentProject.videoUrl}
-                  autoPlay={true}
-                  onEnded={playNextVideo}
-                  webkit-playsInline={true}
-                  playsInline={true}
-                  onLoadedData={onVideoReady}
-                  className="absolute top-0 left-0 w-full h-full"
-                  style={{ objectFit: "cover" }}
-                >
-                  <source src={'https://d1n68de97bad3q.cloudfront.net/' + currentProject.videoUrl} type="video/mp4" />
-                  Your browser does not support the video tag.
-                </video>
+     <video
+     
+     key={currentProject.videoUrl}
+     autoPlay={true}
+     onEnded={playNextVideo}
+     webkit-playsInline={true}
+     playsInline={true}
+     onLoadedData={onVideoReady}
+     onClick={handlePlayPause} // Use handlePlayPause passed down from the parent
+     ref={videoRef} // Attach ref to the video element
+     className="absolute top-0 left-0 w-full h-full"
+     style={{ objectFit: "cover" }}
+   >
+     <source src={'https://d1n68de97bad3q.cloudfront.net/' + currentProject.videoUrl} type="video/mp4" />
+     Your browser does not support the video tag.
+   </video>
               )}
+
+{isPaused && (
+  <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center z-50">
+    <div className="play-icon">Play</div> {/* Replace with your play icon design */}
+  </div>
+)}
+
+{isMuted && (
+  <div className="absolute top-4 left-4 z-50">
+    <div className="mute-icon">Muted</div> {/* Replace with your mute icon design */}
+  </div>
+)}
+
               {showStatic && (
                 <div className="absolute top-0 left-0 w-full h-full">
                   <img
@@ -212,11 +242,8 @@ function TVContent({
                   <div
                     key={channel.id}
                     onClick={() => chooseChannel(channel.id)}
-                    className="flex flex-row border-1 border-black h-20 w-auto z-0 hover:bg-goo"
-                    style={{
-                      backgroundColor:
-                        channel.id == currentChannel.id ? "#c3fd8f" : "",
-                    }}
+                    className={`flex flex-row border-1 border-black h-20 w-auto z-0 hover:bg-goo ${channel.id == currentChannel.id ? "bg-goo" : ""} transition-colors duration-500 ease-in-out`}
+   
                   >
                     <div className="border-2 -m-1 border-black flex flex-col w-24 items-center justify-center font-semibold bg-slime">
                       <div className="border-b-2 border-green-500 min-w-24 flex justify-center z-0">
@@ -240,16 +267,14 @@ function TVContent({
                   {currentProject.credit}, {currentProject.date}
                 </div>
 
-                <div className="border-2 border-black w-auto mr-5 h-32 bg-butter overflow-y-auto">
+
+                <div className={`border-2 border-black w-auto mr-5 h-32  bg-butter overflow-y-auto`}>
                   {currentChannel.linkedProjects.map((project) => (
                     <div
                       key={project.id}
                       onClick={() => chooseProject(project.id)}
-                      className="flex flex-row border-0 border-black h-6 w-auto hover:bg-goo"
-                      style={{
-                        backgroundColor:
-                          project.id == currentProject.id ? "#c3fd8f" : "",
-                      }}
+                      className={`flex flex-row border-0 border-black h-6 w-auto hover:bg-goo ${project.id == currentProject.id ? "bg-goo" : ""}  transition-all duration-500 ease-in-out`}
+
                     >
                       <div className="flex items-center font-bold truncate">
                         {project.title}
@@ -289,7 +314,7 @@ function TVContent({
                   <img
                     src="img/info.png"
                     alt="TV Static"
-                    className="w-3/5 object-cover absolute z-0"
+                    className="w-full md:w-3/5 object-cover absolute z-0"
                   />
                   <h2 className="font-bold text-lg z-30">about</h2>
                   <p className="z-30">porous information here</p>

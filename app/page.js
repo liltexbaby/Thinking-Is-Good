@@ -14,6 +14,30 @@ function page() {
   const videoRef = useRef(null);
   const [showModal, setShowModal] = useState(false); // State for modal visibility
   const [showCompact, setShowCompact] = useState(false);
+  const [isZoomed, setIsZoomed] = useState(false); // Add state to manage zoom
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    // Function to check the screen width
+    const checkIfMobile = () => {
+      setIsMobile(window.innerWidth <= 768); // Set the breakpoint for mobile devices
+    };
+
+    // Initial check
+    checkIfMobile();
+
+    // Add an event listener to update when resizing
+    window.addEventListener('resize', checkIfMobile);
+
+    // Cleanup the event listener on component unmount
+    return () => window.removeEventListener('resize', checkIfMobile);
+  }, []);
+
+
+  // Callback function to update `isZoomed` state from TVScene
+  const handleZoomChange = (zoomState) => {
+    setIsZoomed(zoomState);
+  };
 
   const toggleGuide = () => {
     setShowCompact(!showCompact);
@@ -221,6 +245,15 @@ function page() {
     <div className="tv flex justify-center h-dvh font-eurostile overscroll-y-none">
 
 
+  <img
+  src={isMobile ? 'img/bubbleM.png' : 'img/bubble.png'} // Set src based on device type
+  alt="Banner"
+  className={`absolute top-1/4 left-1/2 md:left-3/4 transform -translate-x-1/2 -translate-y-1/2 z-50 w-[60vw] md:w-[20vw]
+    ${isZoomed ? 'opacity-0' : 'opacity-100'} transition-opacity duration-500 ease-in-out`}
+/>
+
+
+
       <TVScene
       className='z-0 overscroll-y-none'
               channels={channels}
@@ -241,6 +274,8 @@ function page() {
               setChannels={setChannels}
               nextChannel={nextChannel}
               prevChannel={prevChannel}
+              onZoomChange={handleZoomChange} // Pass the callback function
+
               
       />
 

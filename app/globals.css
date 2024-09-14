@@ -24,6 +24,8 @@ html, body {
   background: white;
   overscroll-behavior-y: none;
   font-family: "eurostile", sans-serif;
+  overflow: hidden; /* Prevent scrolling */
+  height: 100vh; /* Fix height to prevent layout shift */
 }
 
 img {
