@@ -125,7 +125,7 @@ const logObjectHierarchy = (object, depth = 0) => {
     const [remoteRotation, setRemoteRotation] = useState(0.0);
     const [remoteHeight, setRemoteHeight] = useState(-0.45);
     const [isMobile, setIsMobile] = useState(false); // State to track if the device is mobile
-    const [isPaused, setIsPaused] = useState(true); // Initially paused
+    const [isPaused, setIsPaused] = useState(false); // Initially paused
     const [isMuted, setIsMuted] = useState(false); // Initially not muted
     
     
@@ -628,126 +628,169 @@ const Pointer = React.forwardRef(
 
 // ClickableButtons component
 const ClickableButtons = ({
-    remoteRef, handlePowerButton, handlePrevChannel, handleNextChannel,
-    handlePrevProj, handleNextProj, handleMiddleButton, handleMenuButton,
-    handleInfoButton, handleNumberButton, handleFullscreenToggle, handleMuteToggle,
-    playButtonClickSound, tvOn, buttonSprings, api, buttonNames
-  }) => {
-    const { raycaster, mouse, camera } = useThree();
-    const isTouchEvent = useRef(false);
-    const debounceTimeout = useRef(null);
-  
-    const buttons = {
-      "Power_Button": handlePowerButton,
-      "Prev_Channel": () => tvOn && handlePrevChannel(),
-      "Next_Channel": () => tvOn && handleNextChannel(),
-      "Prev_Proj": () => tvOn && handlePrevProj(),
-      "Next_Proj": () => tvOn && handleNextProj(),
-      "Middle_Button": () => tvOn && handleMiddleButton(),
-      "Menu_Button": () => tvOn && handleMenuButton(),
-      "Info_Button": () => tvOn && handleInfoButton(),
-      "FS_Button": () => tvOn && handleFullscreenToggle(),
-      "Mute_Button": () => tvOn && handleMuteToggle(),
-      ...Array.from({ length: 10 }, (_, i) => [
-        `Button_${i + 1}`,
-        () => tvOn && handleNumberButton(i + 1),
-      ]).reduce((acc, [key, fn]) => {
-        acc[key] = fn;
-        return acc;
-      }, {}),
-    };
-  
-    const handleInteraction = (event) => {
-        if (debounceTimeout.current) {
-          clearTimeout(debounceTimeout.current);
-        }
-      
-        debounceTimeout.current = setTimeout(() => {
-          if (isTouchEvent.current && event.type === 'click') {
+  remoteRef, handlePowerButton, handlePrevChannel, handleNextChannel,
+  handlePrevProj, handleNextProj, handleMiddleButton, handleMenuButton,
+  handleInfoButton, handleNumberButton, handleFullscreenToggle, handleMuteToggle,
+  playButtonClickSound, tvOn, buttonSprings, api, buttonNames
+}) => {
+  const { raycaster, mouse, camera } = useThree();
+  const isTouchEvent = useRef(false);
+  const debounceTimeout = useRef(null);
+  const buttonAnimating = useRef(buttonNames.map(() => false)); // Track animation state for each button
+
+  // Store buttons logic separately
+  const buttons = {
+    "Power_Button": handlePowerButton,
+    "Prev_Channel": () => tvOn && handlePrevChannel(),
+    "Next_Channel": () => tvOn && handleNextChannel(),
+    "Prev_Proj": () => tvOn && handlePrevProj(),
+    "Next_Proj": () => tvOn && handleNextProj(),
+    "Middle_Button": () => tvOn && handleMiddleButton(),
+    "Menu_Button": () => tvOn && handleMenuButton(),
+    "Info_Button": () => tvOn && handleInfoButton(),
+    "FS_Button": () => tvOn && handleFullscreenToggle(),
+    "Mute_Button": () => tvOn && handleMuteToggle(),
+    ...Array.from({ length: 10 }, (_, i) => [
+      `Button_${i + 1}`,
+      () => tvOn && handleNumberButton(i + 1),
+    ]).reduce((acc, [key, fn]) => {
+      acc[key] = fn;
+      return acc;
+    }, {}),
+  };
+
+  // Handle hover/pointer move logic
+  const handlePointerMove = (event) => {
+    const rect = event.target.getBoundingClientRect();
+    const clientX = event.clientX;
+    const clientY = event.clientY;
+    mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+
+    raycaster.setFromCamera(mouse, camera);
+
+    // Check for button hover using the raycaster on the individual button meshes
+    const buttonMeshes = buttonNames.map((name) => remoteRef.current.getObjectByName(name)).filter(Boolean);
+
+    const intersects = raycaster.intersectObjects(buttonMeshes, true);
+    if (intersects.length > 0) {
+      const hoveredObject = intersects[0].object;
+      if (hoveredObject.userData.name) {
+        document.body.style.cursor = 'pointer'; // Change to pointer cursor on hover
+      }
+    } else {
+      document.body.style.cursor = 'default'; // Reset cursor when not hovering over buttons
+    }
+  };
+
+  // Handle click interaction logic
+  const handleInteraction = (event) => {
+    if (debounceTimeout.current) {
+      clearTimeout(debounceTimeout.current);
+    }
+
+    debounceTimeout.current = setTimeout(() => {
+      if (isTouchEvent.current && event.type === 'click') {
+        return;
+      }
+      isTouchEvent.current = event.type === 'touchstart';
+
+      const rect = event.target.getBoundingClientRect();
+      const clientX = event.clientX || event.touches[0].clientX;
+      const clientY = event.clientY || event.touches[0].clientY;
+      mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+
+      // Handle click detection using the raycaster on the individual button meshes
+      const buttonMeshes = buttonNames.map((name) => remoteRef.current.getObjectByName(name)).filter(Boolean);
+
+      const intersects = raycaster.intersectObjects(buttonMeshes, true);
+      if (intersects.length > 0) {
+        const clickedObject = intersects[0].object;
+        if (clickedObject.userData.name) {
+          const buttonName = clickedObject.userData.name;
+          const buttonIndex = buttonNames.indexOf(buttonName);
+
+          if (buttonAnimating.current[buttonIndex]) {
+            // If the button is still animating, ignore this interaction
             return;
           }
-          isTouchEvent.current = event.type === 'touchstart';
-      
-          const rect = event.target.getBoundingClientRect();
-          const clientX = event.clientX || event.touches[0].clientX;
-          const clientY = event.clientY || event.touches[0].clientY;
-          mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
-          mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
-      
-          raycaster.setFromCamera(mouse, camera);
-      
-          const intersects = raycaster.intersectObjects(remoteRef.current.children, true);
-          if (intersects.length > 0) {
-            const clickedObject = intersects[0].object;
-            if (clickedObject.userData.name) {
-              const buttonName = clickedObject.userData.name;
-              const buttonIndex = buttonNames.indexOf(buttonName);
-      
-              console.log(`Animating Button: ${buttonName}, Current Position:`, clickedObject.position);
-      
-              if (buttons[buttonName]) {
-                document.body.style.cursor = 'pointer';
-                buttons[buttonName]();
-                playButtonClickSound();
-      
-                if (buttonIndex !== -1) {
-                  // Retrieve the current position from the springs to keep x and z consistent
-                  const currentPosition = buttonSprings[buttonIndex].position.get();
-      
-                  // Trigger the button press animation for the specific button
-                  api.start((i) =>
-                    i === buttonIndex
-                      ? { 
-                          position: [currentPosition[0], -2, currentPosition[2]], // Change only the y-axis to 20
-                          config: { tension: 10, friction: 10 } 
-                        }
-                      : null
-                  );
-      
-                  setTimeout(() => {
-                    api.start((i) =>
-                      i === buttonIndex
-                        ? { 
-                            position: [currentPosition[0], 0, currentPosition[2]], // Reset the y-axis to 0, keep x and z the same
-                            config: { tension: 10, friction: 10 } 
-                          }
-                        : null
-                    );
-                  }, 100); // Adjust delay for return animation
-                }
-              }
-            } else {
-              document.body.style.cursor = 'default';
+
+          console.log(`Animating Button: ${buttonName}, Current Position:`, clickedObject.position);
+
+          // Handle button click action
+          if (buttons[buttonName]) {
+            buttons[buttonName]();
+            playButtonClickSound();
+
+            if (buttonIndex !== -1) {
+              const currentPosition = buttonSprings[buttonIndex].position.get();
+
+              // Mark button as animating
+              buttonAnimating.current[buttonIndex] = true;
+
+              // Trigger the button press animation
+              api.start((i) =>
+                i === buttonIndex
+                  ? {
+                      position: [currentPosition[0], -2, currentPosition[2]], // Move down on Y-axis
+                      config: { tension: 200, friction: 20 }, // Faster animation
+                    }
+                  : null
+              );
+
+              setTimeout(() => {
+                api.start((i) =>
+                  i === buttonIndex
+                    ? {
+                        position: [currentPosition[0], 0, currentPosition[2]], // Reset Y-axis
+                        config: { tension: 200, friction: 20 }, // Faster animation
+                      }
+                    : null
+                );
+
+                // Mark button as no longer animating after a short delay
+                setTimeout(() => {
+                  buttonAnimating.current[buttonIndex] = false;
+                }, 200); // Animation duration
+              }, 100); // Button press animation duration
             }
-          } else {
-            document.body.style.cursor = 'default';
           }
-        }, 100);
-      };
-  
-    useEffect(() => {
-      const handleTouchEnd = () => {
-        isTouchEvent.current = false;
-        document.body.style.cursor = 'default';
-      };
-  
-      const handleMouseLeave = () => {
-        document.body.style.cursor = 'default';
-      };
-  
-      window.addEventListener('click', handleInteraction);
-      window.addEventListener('touchstart', handleInteraction);
-      window.addEventListener('touchend', handleTouchEnd);
-      window.addEventListener('mouseleave', handleMouseLeave);
-      return () => {
-        window.removeEventListener('click', handleInteraction);
-        window.removeEventListener('touchstart', handleInteraction);
-        window.removeEventListener('touchend', handleTouchEnd);
-        window.removeEventListener('mouseleave', handleMouseLeave);
-      };
-    }, [raycaster, mouse, camera, remoteRef, buttons]);
-  
-    return null;
+        }
+      } else {
+        document.body.style.cursor = 'default'; // Reset cursor if not over a button
+      }
+    }, 100);
   };
+
+  useEffect(() => {
+    const handleTouchEnd = () => {
+      isTouchEvent.current = false;
+      document.body.style.cursor = 'default';
+    };
+
+    const handleMouseLeave = () => {
+      document.body.style.cursor = 'default';
+    };
+
+    window.addEventListener('pointermove', handlePointerMove); // Hover interaction
+    window.addEventListener('click', handleInteraction); // Click interaction
+    window.addEventListener('touchstart', handleInteraction);
+    window.addEventListener('touchend', handleTouchEnd);
+    window.addEventListener('mouseleave', handleMouseLeave);
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('click', handleInteraction);
+      window.removeEventListener('touchstart', handleInteraction);
+      window.removeEventListener('touchend', handleTouchEnd);
+      window.removeEventListener('mouseleave', handleMouseLeave);
+    };
+  }, [raycaster, mouse, camera, remoteRef, buttons]);
+
+  return null;
+};
 
 export default TVScene;
